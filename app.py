@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.metrics import accuracy_score, confusion_matrix
 import matplotlib.pyplot as plt
 
 # -----------------------------
@@ -12,22 +12,9 @@ import matplotlib.pyplot as plt
 st.set_page_config(page_title="Placement Prediction", layout="wide")
 
 # -----------------------------
-# THEME TOGGLE (Dark / Light)
+# TITLE
 # -----------------------------
-theme = st.sidebar.radio("🎨 Select Theme", ["Light", "Dark"])
-
-if theme == "Dark":
-    st.markdown("""
-        <style>
-        body {background-color: #0E1117; color: white;}
-        </style>
-    """, unsafe_allow_html=True)
-
-# -----------------------------
-# HEADER
-# -----------------------------
-st.title("🎓 Student Placement Prediction Dashboard")
-st.markdown("### Predict whether a student will be **Placed or Not Placed**")
+st.title("🎓 Placement Prediction System")
 
 # -----------------------------
 # LOAD DATA
@@ -56,7 +43,7 @@ def load_data():
 df = load_data()
 
 # -----------------------------
-# MODEL TRAINING
+# MODEL
 # -----------------------------
 X = df.drop(["PlacementStatus", "StudentID"], axis=1)
 y = df["PlacementStatus"]
@@ -71,118 +58,94 @@ model.fit(X_train, y_train)
 accuracy = accuracy_score(y_test, model.predict(X_test))
 
 # -----------------------------
-# METRICS
+# TABS
 # -----------------------------
-st.subheader("📊 Model Performance")
+tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "🤖 Prediction", "📁 Data"])
 
-col1, col2, col3 = st.columns(3)
+# =============================
+# TAB 1: DASHBOARD
+# =============================
+with tab1:
+    st.subheader("📊 Overview")
 
-col1.metric("Accuracy", f"{accuracy*100:.2f}%")
-col2.metric("Total Students", len(df))
-col3.metric("Features Used", len(X.columns))
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Accuracy", f"{accuracy*100:.2f}%")
+    col2.metric("Students", len(df))
+    col3.metric("Features", len(X.columns))
 
-# -----------------------------
-# SIDEBAR INPUT
-# -----------------------------
-st.sidebar.header("📥 Student Input")
+    st.markdown("---")
 
-cgpa = st.sidebar.slider("CGPA", 0.0, 10.0, 7.0)
-internships = st.sidebar.number_input("Internships", 0, 10, 1)
-projects = st.sidebar.number_input("Projects", 0, 10, 2)
-workshops = st.sidebar.number_input("Workshops", 0, 10, 1)
-aptitude = st.sidebar.slider("Aptitude Score", 0, 100, 60)
-softskills = st.sidebar.slider("Soft Skills", 0.0, 5.0, 3.0)
+    col1, col2 = st.columns(2)
 
-extra = st.sidebar.selectbox("Extracurricular Activities", ["Yes", "No"])
-training = st.sidebar.selectbox("Placement Training", ["Yes", "No"])
+    with col1:
+        st.write("Placement Distribution")
+        st.bar_chart(df["PlacementStatus"].value_counts())
 
-ssc = st.sidebar.slider("SSC Marks", 0, 100, 70)
-hsc = st.sidebar.slider("HSC Marks", 0, 100, 75)
+    with col2:
+        st.write("CGPA Distribution")
+        st.line_chart(df["CGPA"])
 
-extra = 1 if extra == "Yes" else 0
-training = 1 if training == "Yes" else 0
+    st.markdown("---")
 
-# -----------------------------
-# PREDICTION
-# -----------------------------
-st.subheader("🤖 Prediction")
+    st.subheader("📊 Confusion Matrix")
 
-input_data = pd.DataFrame([[cgpa, internships, projects, workshops,
-                            aptitude, softskills, extra, training, ssc, hsc]],
-                          columns=X.columns)
+    cm = confusion_matrix(y_test, model.predict(X_test))
 
-if st.button("🚀 Predict"):
-    prediction = model.predict(input_data)
+    fig, ax = plt.subplots()
+    ax.matshow(cm)
 
-    if prediction[0] == 1:
-        st.success("🎉 Likely to be PLACED")
-    else:
-        st.error("⚠️ Likely NOT placed")
+    for (i, j), val in np.ndenumerate(cm):
+        ax.text(j, i, f"{val}", ha='center', va='center')
 
-# -----------------------------
-# CONFUSION MATRIX
-# -----------------------------
-st.subheader("📊 Confusion Matrix")
+    st.pyplot(fig)
 
-cm = confusion_matrix(y_test, model.predict(X_test))
+# =============================
+# TAB 2: PREDICTION
+# =============================
+with tab2:
+    st.subheader("🤖 Predict Placement")
 
-fig, ax = plt.subplots()
-ax.matshow(cm)
+    col1, col2 = st.columns(2)
 
-for (i, j), val in np.ndenumerate(cm):
-    ax.text(j, i, f"{val}", ha='center', va='center')
+    with col1:
+        cgpa = st.slider("CGPA", 0.0, 10.0, 7.0)
+        internships = st.number_input("Internships", 0, 10, 1)
+        projects = st.number_input("Projects", 0, 10, 2)
+        workshops = st.number_input("Workshops", 0, 10, 1)
+        aptitude = st.slider("Aptitude Score", 0, 100, 60)
 
-st.pyplot(fig)
+    with col2:
+        softskills = st.slider("Soft Skills", 0.0, 5.0, 3.0)
+        extra = st.selectbox("Extracurricular", ["Yes", "No"])
+        training = st.selectbox("Training", ["Yes", "No"])
+        ssc = st.slider("SSC Marks", 0, 100, 70)
+        hsc = st.slider("HSC Marks", 0, 100, 75)
 
-# -----------------------------
-# CLASSIFICATION REPORT
-# -----------------------------
-st.subheader("📄 Classification Report")
+    extra = 1 if extra == "Yes" else 0
+    training = 1 if training == "Yes" else 0
 
-report = classification_report(y_test, model.predict(X_test), output_dict=True)
-st.dataframe(pd.DataFrame(report).transpose())
+    input_data = pd.DataFrame([[cgpa, internships, projects, workshops,
+                                aptitude, softskills, extra, training, ssc, hsc]],
+                              columns=X.columns)
 
-# -----------------------------
-# FEATURE IMPORTANCE
-# -----------------------------
-st.subheader("📈 Feature Importance")
+    if st.button("🚀 Predict"):
+        prediction = model.predict(input_data)
 
-importance = pd.Series(model.coef_[0], index=X.columns)
-importance.sort_values().plot(kind='barh')
+        if prediction[0] == 1:
+            st.success("🎉 Likely to be PLACED")
+        else:
+            st.error("⚠️ Likely NOT placed")
 
-st.pyplot(plt)
+# =============================
+# TAB 3: DATA
+# =============================
+with tab3:
+    st.subheader("📁 Dataset")
 
-# -----------------------------
-# DATA VISUALIZATION
-# -----------------------------
-st.subheader("📊 Data Insights")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.write("Placement Distribution")
-    st.bar_chart(df["PlacementStatus"].value_counts())
-
-with col2:
-    st.write("CGPA Distribution")
-    st.line_chart(df["CGPA"])
-
-# -----------------------------
-# DOWNLOAD PREDICTION
-# -----------------------------
-st.subheader("📥 Download Sample Input")
-
-csv = input_data.to_csv(index=False)
-st.download_button("Download Input Data", csv, "sample_input.csv")
-
-# -----------------------------
-# SHOW DATA
-# -----------------------------
-if st.checkbox("Show Raw Data"):
     st.dataframe(df.head())
 
-# -----------------------------
-# FOOTER
-# -----------------------------
-st.markdown("---")
-st.markdown("👩‍💻 Developed by Monisha | Placement Prediction Project")
+    st.download_button(
+        "Download Dataset",
+        df.to_csv(index=False),
+        "placement.csv"
+    )
